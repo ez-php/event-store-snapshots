@@ -290,7 +290,7 @@ tests/
 ├── TestCase.php                         — Base PHPUnit test case (identical in every package)
 ├── SnapshottingLoaderTest.php           — real PdoEventStore (SQLite): thresholds, partial replay, stateVersion invalidation, take()
 ├── SnapshotStoresTest.php               — shared contract over both stores; PDO transaction joining and error wrapping
-├── PdoSnapshotStoreMysqlTest.php        — MySQL DDL branch and round-trip; skipped without DB_HOST
+├── PdoSnapshotStoreMysqlTest.php        — MySQL DDL branch, round-trip, and 8 concurrent savers on one fresh stream; skipped without DB_HOST
 ├── EveryNEventsPolicyTest.php           — threshold behaviour and validation
 ├── SnapshotServiceProviderTest.php      — binding over DatabaseInterface; loud failure without it
 └── Support/
@@ -305,7 +305,7 @@ tests/
 | Class | Responsibility |
 |---|---|
 | `SnapshottingLoader` | `replay`: latest snapshot (if its `stateVersion` matches) → `EventStoreInterface::load($stream, $snapshot->version)` → fold with the reducer. `load()` then asks the policy; `take()` always saves (except for an empty stream). |
-| `PdoSnapshotStore` | One row per stream (`stream_id` primary key). `save()` reads the current version and replaces the row only when the new snapshot is newer — inside its own transaction, or the caller's if one is open. |
+| `PdoSnapshotStore` | One row per stream (`stream_id` primary key). `save()` is a single conditional upsert that replaces the row only when the new snapshot is newer; it runs inside the caller's transaction if one is open. |
 | `EveryNEventsPolicy` | Bounds the replay cost: at most about N events are replayed again after a snapshot. |
 | `SnapshotServiceProvider` | Binds only the store; the loader (policy, state version, reducer) is per use case. |
 
@@ -327,6 +327,11 @@ tests/
   qualifying load. Without the bump the old state would silently persist.
 - **Only the latest snapshot is kept, and it never moves backwards.** Both stores drop a `save()`
   whose version is not higher than the stored one, so two concurrent loaders cannot regress a stream.
+  In `PdoSnapshotStore` that guard lives inside one upsert (`ON DUPLICATE KEY UPDATE … IF(new > version)` on
+  MySQL, `ON CONFLICT … DO UPDATE … WHERE excluded.version > version` on SQLite/PostgreSQL). The row lock it takes
+  serialises concurrent writers. The read-then-replace it replaced was racy on MySQL: its `SELECT` was a
+  non-locking snapshot read, so two first saves collided on the primary key (a `SnapshotException` out of `load()`)
+  and a slower, older save could delete a newer row.
   A snapshot is a cache: losing it (or calling `delete()`) only costs a full replay.
 - **Snapshots are best-effort, not part of the event-store transaction.** They are derived data; a
   failed `save()` throws `SnapshotException` but never affects the event log.
@@ -338,7 +343,8 @@ tests/
 ## Testing Approach
 
 - Most tests use `PDO('sqlite::memory:')` with a real `PdoEventStore`, mirroring `ez-php/event-store`.
-- `PdoSnapshotStoreMysqlTest` covers the MySQL DDL branch. It runs when `DB_HOST` is set (the module's
+- `PdoSnapshotStoreMysqlTest` covers the MySQL DDL branch and races eight `save()` calls from separate PHP
+  processes (one connection each), which a single connection cannot reproduce. It runs when `DB_HOST` is set (the module's
   `docker-compose.yml` MySQL on host port `3312`, the root stack's `db`, or the CI job's MySQL
   service) and is skipped otherwise; it drops `event_store_snapshots` around each test.
 - Test classes live in the shared `Tests\` namespace but must be uniquely named
