@@ -360,6 +360,6 @@ tests/
 | Concern | Where it belongs |
 |---|---|
 | Appending / loading events, concurrency control, upcasting | `ez-php/event-store` |
-| Read models built from many streams | `ez-php/event-store`'s `Projectionist` + application projectors |
+| Read models built from many streams | `ez-php/event-store`'s `GlobalProjectionist` + application projectors |
 | Aggregate base classes / command handling | Application layer |
 | Keeping snapshot history or time-travel queries | Not supported — the store keeps only the latest snapshot |
