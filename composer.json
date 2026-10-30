@@ -1,6 +1,6 @@
 {
   "name": "ez-php/event-store-snapshots",
-  "version": "2.6.3",
+  "version": "2.6.4",
   "description": "Snapshot store for ez-php/event-store streams: PDO and in-memory stores, every-N-events policy, snapshot-aware loader",
   "type": "library",
   "license": "MIT",
