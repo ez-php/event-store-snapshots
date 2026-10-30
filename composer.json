@@ -1,6 +1,6 @@
 {
   "name": "ez-php/event-store-snapshots",
-  "version": "2.6.5",
+  "version": "2.7.0",
   "description": "Snapshot store for ez-php/event-store streams: PDO and in-memory stores, every-N-events policy, snapshot-aware loader",
   "type": "library",
   "license": "MIT",
@@ -18,11 +18,11 @@
   },
   "require": {
     "php": "^8.5",
-    "ez-php/contracts": "^2.6.0",
-    "ez-php/event-store": "^2.6.0"
+    "ez-php/contracts": "^2.7.0",
+    "ez-php/event-store": "^2.7.0"
   },
   "require-dev": {
-    "ez-php/docker": "^2.6.0",
+    "ez-php/docker": "^2.7.0",
     "phpunit/phpunit": "^13.0",
     "phpstan/phpstan": "^2.1",
     "friendsofphp/php-cs-fixer": "^3.94",
